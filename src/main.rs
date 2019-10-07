@@ -8,7 +8,6 @@
  * I've just been trimming it down to what I actually need to then recreate the sample 
  * project that Dr. Bailey has given us.
  */
-
 use glutin::event::{Event, WindowEvent, StartCause, ElementState};
 use glutin::event_loop::{ControlFlow, EventLoop};
 use glutin::window::WindowBuilder;
@@ -19,6 +18,8 @@ use glutin::event::*;
 
 use cgmath::{Matrix4, Deg, PerspectiveFov, Point3, Vector3};
 
+use rand::prelude::*;
+
 use std::time::Instant;
 use std::ffi::CStr;
 
@@ -28,7 +29,7 @@ mod gl {
 use gl::types::*;
 
 struct DisplayLists {
-	cube: GLuint,
+	ship: GLuint,
 	axis: GLuint
 }
 struct ButtonStates {
@@ -36,6 +37,7 @@ struct ButtonStates {
 	middle: ElementState,
 	right: ElementState
 }
+const WATER_SIZE: usize = 20;
 struct Demo {
 	wrapped_context: WindowedContext<PossiblyCurrent>,
 	last_animate: Option<Instant>,
@@ -44,7 +46,9 @@ struct Demo {
 	scale: f32,
 	display_lists: Option<DisplayLists>,
 	// fog_on: bool
-	button_states: ButtonStates
+	button_states: ButtonStates,
+	water_offsets: [[f32; WATER_SIZE]; WATER_SIZE],
+	water_time: f32
 }
 
 impl Demo {
@@ -53,8 +57,15 @@ impl Demo {
 			"Pixel format of the window's GL context: {:?}",
 			wrapped_context.get_pixel_format()
 		);
-
 		gl::load_with(|ptr| wrapped_context.context().get_proc_address(ptr) as *const _);
+		
+		let mut water_offsets = [[0 as f32; WATER_SIZE]; WATER_SIZE];
+		let mut rng = rand::thread_rng();
+		for row in water_offsets.iter_mut() {
+			for item in row.iter_mut() {
+				*item = rng.gen_range(0.0, 1000.0);
+			}
+		}
 
 		Demo { 
 			wrapped_context,
@@ -67,58 +78,59 @@ impl Demo {
 				left: ElementState::Released,
 				middle: ElementState::Released,
 				right: ElementState::Released
-			}
+			},
+			water_offsets,
+			water_time: 0.0
 		}
 	}
 	fn build_display_lists(&mut self) -> DisplayLists {
-		let cube = unsafe {
+		let ship = unsafe {
 			gl::GenLists(1)
 		};
 		unsafe {
-			const DX: f32 = 0.5;
-			const DY: f32 = DX;
-			const DZ: f32 = DY;
-			gl::NewList( cube, gl::COMPILE );
-				gl::Begin( gl::QUADS );
-					gl::Color3f( 0., 0., 1. );
-					gl::Normal3f( 0., 0.,  1. );
-						gl::Vertex3f( -DX, -DY,  DZ );
-						gl::Vertex3f(  DX, -DY,  DZ );
-						gl::Vertex3f(  DX,  DY,  DZ );
-						gl::Vertex3f( -DX,  DY,  DZ );
-					gl::Normal3f( 0., 0., -1. );
-						gl::TexCoord2f( 0., 0. );
-						gl::Vertex3f( -DX, -DY, -DZ );
-						gl::TexCoord2f( 0., 1. );
-						gl::Vertex3f( -DX,  DY, -DZ );
-						gl::TexCoord2f( 1., 1. );
-						gl::Vertex3f(  DX,  DY, -DZ );
-						gl::TexCoord2f( 1., 0. );
-						gl::Vertex3f(  DX, -DY, -DZ );
-					gl::Color3f( 1., 0., 0. );
-					gl::Normal3f(  1., 0., 0. );
-						gl::Vertex3f(  DX, -DY,  DZ );
-						gl::Vertex3f(  DX, -DY, -DZ );
-						gl::Vertex3f(  DX,  DY, -DZ );
-						gl::Vertex3f(  DX,  DY,  DZ );
-					gl::Normal3f( -1., 0., 0. );
-						gl::Vertex3f( -DX, -DY,  DZ );
-						gl::Vertex3f( -DX,  DY,  DZ );
-						gl::Vertex3f( -DX,  DY, -DZ );
-						gl::Vertex3f( -DX, -DY, -DZ );
-					gl::Color3f( 0., 1., 0. );
-					gl::Normal3f( 0.,  1., 0. );
-						gl::Vertex3f( -DX,  DY,  DZ );
-						gl::Vertex3f(  DX,  DY,  DZ );
-						gl::Vertex3f(  DX,  DY, -DZ );
-						gl::Vertex3f( -DX,  DY, -DZ );
-					gl::Normal3f( 0., -1., 0. );
-						gl::Vertex3f( -DX, -DY,  DZ );
-						gl::Vertex3f( -DX, -DY, -DZ );
-						gl::Vertex3f(  DX, -DY, -DZ );
-						gl::Vertex3f(  DX, -DY,  DZ );
+			gl::NewList(ship, gl::COMPILE);
+				let width = 1.0;
+				let height = 1.0;
+				let bow_lead = 1.0;
+				let length = 3.0;
+				// Haul:
+				gl::Color3f(43.0 / 255.0, 26.0 / 255.0, 31.0 / 255.0);
+				gl::Begin(gl::TRIANGLE_STRIP);
+					gl::Vertex3f(0.0, 0.0, length);
+					gl::Vertex3f(0.0, height, length);
+					gl::Vertex3f(width / 2.0, 0.0, length - bow_lead);
+					gl::Vertex3f(width / 2.0, height, length - bow_lead);
+					gl::Vertex3f(width / 2.0, 0.0, 0.0);
+					gl::Vertex3f(width / 2.0, height, 0.0);
+
+					gl::Vertex3f(-width / 2.0, 0.0, 0.0);
+					gl::Vertex3f(-width / 2.0, height, 0.0);
+
+					gl::Vertex3f(-width / 2.0, 0.0, length - bow_lead);
+					gl::Vertex3f(-width / 2.0, height, length - bow_lead);
+					gl::Vertex3f(0.0, height, length);
+					gl::Vertex3f(0.0, 0.0, length);
+					gl::Vertex3f(-width / 2.0, 0.0, length - bow_lead);
+					gl::Vertex3f(width / 2.0, 0.0, length - bow_lead);
+					gl::Vertex3f(-width / 2.0, 0.0, 0.0);
+					gl::Vertex3f(width / 2.0, 0.0, 0.0);
 				gl::End( );
-			gl::EndList( );
+				// Sail
+				gl::Color3f(1.0, 1.0, 1.0);
+				gl::Begin(gl::QUADS);
+					gl::Vertex3f(width / 2.0, height * 2.5, length / 2.0);
+					gl::Vertex3f(-width / 2.0, height * 2.5, length / 2.0);
+					gl::Vertex3f(-width / 2.0, height * 1.5, length / 2.0);
+					gl::Vertex3f(width / 2.0, height * 1.5, length / 2.0);
+				gl::End();
+				// Mast
+				gl::Color3f(99.0 / 255.0, 55.0 / 255.0, 44.0 / 255.0);
+				gl::LineWidth(50.0);
+				gl::Begin(gl::LINES);
+					gl::Vertex3f(0.0, 0.0, length / 2.0);
+					gl::Vertex3f(0.0, height * 2.5, length / 2.0);
+				gl::End();
+			gl::EndList();
 		}
 		let axis = unsafe {
 			gl::GenLists( 1 )
@@ -139,7 +151,7 @@ impl Demo {
 			gl::EndList( );
 		}
 		DisplayLists {
-			cube,
+			ship,
 			axis
 		}
 	}
@@ -183,6 +195,76 @@ impl Demo {
 			}
 		}
 	}
+	fn draw_ocean(&mut self) {
+		unsafe {
+			gl::Begin(gl::QUADS);
+				gl::PushMatrix();
+				gl::LoadIdentity();
+				let total_width = 15.0;
+				let total_height = total_width;
+				let width = total_width / self.water_offsets.len() as f32;
+				let height = total_height / self.water_offsets.len() as f32;
+				let wave_height = 0.2;
+				let red_start = 17.0;
+				let green_start = 29.0;
+				let blue_start = 74.0;
+				let red_cof = (103.0 - red_start) / 2.0;
+				let green_cof = (122.0 - green_start) / 2.0;
+				let blue_cof = (140.0 - blue_start) / 2.0;
+				for r in 0..(self.water_offsets.len() - 1) {
+					for c in 0..(self.water_offsets.len() - 1) {
+						let tl = (self.water_time + self.water_offsets[r][c]).sin() + 1.0;
+						
+						gl::Color3f(
+							(red_start + red_cof * tl) / 255.0, 
+							(green_start + green_cof * tl) / 255.0, 
+							(blue_start + blue_cof * tl) / 255.0
+						);
+						gl::Vertex3f(
+							-total_width / 2.0 + width * r as f32, 
+							tl * wave_height, 
+							-total_height / 2.0 + height * c as f32
+						);
+						let tr = (self.water_time + self.water_offsets[r][c + 1]).sin() + 1.0;
+						gl::Color3f(
+							(red_start + red_cof * tr) / 255.0, 
+							(green_start + green_cof * tr) / 255.0, 
+							(blue_start + blue_cof * tr) / 255.0
+						);
+						gl::Vertex3f(
+							-total_width / 2.0 + width * r as f32, 
+							tr * wave_height, 
+							-total_height / 2.0 + height * (c + 1) as f32
+						);
+						let br = (self.water_time + self.water_offsets[r + 1][c + 1]).sin() + 1.0;
+						gl::Color3f(
+							(red_start + red_cof * br) / 255.0, 
+							(green_start + green_cof * br) / 255.0, 
+							(blue_start + blue_cof * br) / 255.0
+						);
+						gl::Vertex3f(
+							-total_width / 2.0 + width * (r + 1) as f32, 
+							br * wave_height, 
+							-total_height / 2.0 + height * (c + 1) as f32
+						);
+						let bl = (self.water_time + self.water_offsets[r + 1][c]).sin() + 1.0;
+						gl::Color3f(
+							(red_start + red_cof * bl) / 255.0, 
+							(green_start + green_cof * bl) / 255.0, 
+							(blue_start + blue_cof * bl) / 255.0
+						);
+						gl::Vertex3f(
+							-total_width / 2.0 + width * (r + 1) as f32, 
+							bl * wave_height, 
+							-total_height / 2.0 + height * c as f32
+						);
+					}
+				}
+				gl::Translatef(total_width / 2.0, 0.0, total_height / 2.0);
+				gl::PopMatrix();
+			gl::End();
+		}
+	}
 	fn draw(&mut self) {
 		println!("Drawing.");
 
@@ -202,7 +284,6 @@ impl Demo {
 			let arr: &[f32; 16] = projection.as_ref();
 			gl::LoadMatrixf(arr.as_ptr());
 
-
 			gl::MatrixMode( gl::MODELVIEW );
 
 			// This is essentially a gluLookAt call
@@ -216,76 +297,19 @@ impl Demo {
 
 			gl::ShadeModel(gl::FLAT);
 
-
 			// rotate the scene:
 			gl::Rotatef(self.yrot, 0.0, 1.0, 0.0);
 			gl::Rotatef(self.xrot, 1.0, 0.0, 1.0);
 
-
 			// uniformly scale the scene:
 			gl::Scalef( self.scale, self.scale, self.scale );
 
-
-			// set the fog parameters:
-			// if self.fog_on {
-			// 	gl::Fogi( gl::FOG_MODE, FOGMODE );
-			// 	gl::Fogfv( gl::FOG_COLOR, FOGCOLOR );
-			// 	gl::Fogf( gl::FOG_DENSITY, FOGDENSITY );
-			// 	gl::Fogf( gl::FOG_START, FOGSTART );
-			// 	gl::Fogf( gl::FOG_END, FOGEND );
-			// 	gl::Enable( gl::FOG );
-			// } else {
-			// 	gl::Disable( gl::FOG );
-			// }
-
-
-			// possibly draw the axes:
-
-			// if self.axis_on {
-			// 	gl::Color3fv( &Colors[WhichColor][0] );
-			// 	gl::CallList( AxesList );
-			// }
-
-			// draw the current object:
+			// Draw the objects:
 			if let Some(ref lists) = self.display_lists {
-				gl::CallList( lists.cube );
+				gl::CallList( lists.ship );
 				self.draw_axis();
 			}
-
-			/*if( DepthFightingOn != 0 )
-			{
-				glPushMatrix( );
-					glRotatef( 90.,   0., 1., 0. );
-					glCallList( BoxList );
-				glPopMatrix( );
-			}*/
-
-
-			// draw some gratuitous text that just rotates on top of the scene:
-
-			// glDisable( gl::DEPTH_TEST );
-			// glColor3f( 0., 1., 1. );
-			// DoRasterString( 0., 1., 0., "Text That Moves" );
-
-
-			// draw some gratuitous text that is fixed on the screen:
-			//
-			// the projection matrix is reset to define a scene whose
-			// world coordinate system goes from 0-100 in each axis
-			//
-			// this is called "percent units", and is just a convenience
-			//
-			// the modelview matrix is reset to identity as we don't
-			// want to transform these coordinates
-
-			// glDisable( gl::DEPTH_TEST );
-			// glMatrixMode( gl::PROJECTION );
-			// glLoadIdentity( );
-			// gluOrtho2D( 0., 100.,     0., 100. );
-			// glMatrixMode( gl::MODELVIEW );
-			// glLoadIdentity( );
-			// glColor3f( 1., 1., 1. );
-			// DoRasterString( 5., 5., 0., "Text That Doesn't" );
+			self.draw_ocean();
 
 			gl::Flush();
         }
@@ -299,8 +323,9 @@ impl Demo {
 			},
 			Some(last_inst) => {
 				// Diff is the # of miliseconds since the last animate call.
-				let _diff = now.duration_since(last_inst).as_millis();
-				// self.yrot += diff as f32 / 50.0;
+				let diff = now.duration_since(last_inst).as_millis();
+				self.yrot += diff as f32 / 50.0;
+				self.water_time += diff as f32 / 500.0;
 			}
 		}
 		self.last_animate = Some(now);
@@ -313,12 +338,12 @@ impl Demo {
 	}
 	fn mouse_move(&mut self, diff_x: f32, diff_y: f32) {
 		if self.button_states.left == ElementState::Pressed {
-			self.yrot -= diff_x;
-			self.xrot -= diff_y;
+			self.yrot += diff_x;
+			self.xrot += diff_y;
 		}
 	}
 	fn scroll_delta(&mut self, diff_y: f32) {
-		self.scale += diff_y / 100.0;
+		self.scale += diff_y / 80.0;
 		if self.scale < 0.05 {
 			self.scale = 0.05;
 		}
