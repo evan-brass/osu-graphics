@@ -9,6 +9,7 @@ publish = false
 glutin = "0.22.0-alpha2"
 cgmath = "0.17.0"
 rand = "0.7.2"
+gtk = "0.7.0"
 
 [build-dependencies]
 gl_generator = "0.14.0"
