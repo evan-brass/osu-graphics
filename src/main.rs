@@ -8,20 +8,23 @@
  * I've just been trimming it down to what I actually need to then recreate the sample 
  * project that Dr. Bailey has given us.
  */
-use glutin::event::{Event, WindowEvent, StartCause, ElementState};
-use glutin::event_loop::{ControlFlow, EventLoop};
-use glutin::window::WindowBuilder;
-use glutin::{GlRequest, ContextBuilder, WindowedContext, PossiblyCurrent};
-use glutin::dpi::{LogicalSize, LogicalPosition};
-use glutin::Api::OpenGl;
-use glutin::event::*;
+use glutin::{
+	event_loop::{ControlFlow, EventLoop},
+	event::*,
+	window::WindowBuilder,
+	GlRequest, ContextBuilder, WindowedContext, PossiblyCurrent,
+	dpi::{LogicalSize, LogicalPosition},
+	Api::OpenGl
+};
 
 use cgmath::{Matrix4, Deg, PerspectiveFov, Point3, Vector3};
 
-use gtk;
-
-use std::time::Instant;
-use std::ffi::CStr;
+use std::{
+	time::Instant,
+	ffi::CStr,
+	thread, 
+	sync::{Arc, Mutex}
+};
 
 mod gl;
 use gl::types::*;
@@ -36,7 +39,7 @@ struct ButtonStates {
 }
 const WATER_SIZE: usize = 20;
 struct Demo {
-	wrapped_context: WindowedContext<PossiblyCurrent>,
+	pub wrapped_context: WindowedContext<PossiblyCurrent>,
 	last_animate: Option<Instant>,
 	yrot: f32,
 	xrot: f32,
@@ -51,6 +54,11 @@ struct Demo {
 	paused: bool,
 	// fog_on: bool
 	button_states: ButtonStates
+}
+
+#[derive(Debug)]
+enum CustomEvents {
+	Nothing,
 }
 
 impl Demo {
@@ -139,7 +147,7 @@ impl Demo {
 			let arr: &[f32; 16] = mat.as_ref();
 			gl::LoadMatrixf(arr.as_ptr());
 
-			gl::ShadeModel(gl::FLAT);
+			gl::ShadeModel(gl::SMOOTH);
 			
 			if !self.cockpit {
 				// uniformly scale the scene:
@@ -238,7 +246,7 @@ impl Demo {
 }
 
 fn main() {
-    let event_loop = EventLoop::new();
+    let event_loop = EventLoop::<CustomEvents>::with_user_event();
     let wb = WindowBuilder::new().with_title("OpenGL / GLUT Sample -- Evan Brass");
 
     let windowed_context =
@@ -250,32 +258,40 @@ fn main() {
 	let mut demo = Demo::new(unsafe { windowed_context.make_current().unwrap() });
 
 	demo.init();
-	demo.animate(); // Initialize variables and 
+	demo.animate(); // Initialize variables and
 
-    event_loop.run(move |event, _, control_flow| {
+	// Proxy used for sending commands from the context menu to the main loop
+	let proxy = event_loop.create_proxy();
+    event_loop.run(move |event, window_target, control_flow| {
 		println!("{:?}", event);
         *control_flow = ControlFlow::Poll;
 
         match event {
             Event::LoopDestroyed => return,
-            Event::WindowEvent { ref event, .. } => match event {
-                WindowEvent::Resized(logical_size) => {
-					demo.resized(logical_size);
-                }
-                WindowEvent::RedrawRequested => {
-					demo.draw();
-                }
-                WindowEvent::CloseRequested => {
-                    *control_flow = ControlFlow::Exit
-                },
-				WindowEvent::ReceivedCharacter(ch) => match ch {
-					// Handle Magic Keys
-					'c' | 'C' => demo.toggle_cockpit(),
-					'f' | 'F' => demo.toggle_paused(),
-					'w' | 'W' => demo.toggle_wireframe(),
-					_ => ()
-				},
-                _ => (),
+            Event::WindowEvent { ref event, window_id } => {
+				if window_id == demo.wrapped_context.window().id() {
+					match event {
+						WindowEvent::Resized(logical_size) => {
+							demo.resized(logical_size);
+						}
+						WindowEvent::RedrawRequested => {
+							demo.draw();
+						}
+						WindowEvent::CloseRequested => {
+							*control_flow = ControlFlow::Exit
+						},
+						WindowEvent::ReceivedCharacter(ch) => match ch {
+							// Handle Magic Keys
+							'c' | 'C' => demo.toggle_cockpit(),
+							'f' | 'F' => demo.toggle_paused(),
+							'w' | 'W' => demo.toggle_wireframe(),
+							_ => ()
+						},
+						_ => (),
+					}
+				} else {
+
+				}
             },
 			Event::DeviceEvent{ ref event, .. } => match event {
 				// Pass mouse movement to the demo:
@@ -291,14 +307,30 @@ fn main() {
 					}
 				},
 				// Keep the button states up to date:
-				DeviceEvent::Button{button: 1, state } => demo.button_states.left = *state,
+				DeviceEvent::Button{button: 1, state } => {
+					demo.button_states.left = *state;
+					match state {
+						ElementState::Pressed => {
+							proxy.send_event(CustomEvents::Nothing).unwrap();
+						},
+						_ => ()
+					};
+				},
 				DeviceEvent::Button{button: 2, state } => demo.button_states.middle = *state,
 				DeviceEvent::Button{button: 3, state } => {
 					demo.button_states.right = *state;
-					// Also open the context menu:
-					let menu = gtk::MenuBuilder::new()
-						.take_focus(true)
-						.build();
+
+					// Also open the context menu - In a new thread so that we can hijack that thread for the new window's event loop.
+					if let ElementState::Pressed = state {
+						let context_window_builder = WindowBuilder::new()
+							.with_decorations(false);
+							// .with_always_on_top(true);
+
+						let _windowed_context =
+							ContextBuilder::new()
+							.with_gl(GlRequest::Specific(OpenGl, (2, 1)))
+							.build_windowed(context_window_builder, &window_target).unwrap();
+					}
 				},
 				_ => ()
 			},
