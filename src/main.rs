@@ -44,12 +44,12 @@ struct Demo {
 	yrot: f32,
 	xrot: f32,
 	scale: f32,
-	helicopter: Helicopter,
-	propeller: Propeller,
+	pub helicopter: Helicopter,
+	pub propeller: Propeller,
 	propeller_rot: f32,
-	axis: Axis,
-	ship: Ship,
-	ocean: Ocean,
+	pub axis: Axis,
+	pub ship: Ship,
+	pub ocean: Ocean,
 	cockpit: bool,
 	paused: bool,
 	// fog_on: bool
@@ -105,11 +105,8 @@ impl Demo {
 			gl::Enable( gl::NORMALIZE );
 		}
 
-		self.helicopter.init();
-		self.axis.init();
-		self.ship.init();
-		self.propeller.init();
 		self.ocean.init();
+		self.axis.init();
 	}
 	fn draw(&mut self) {
 		unsafe {
@@ -131,67 +128,24 @@ impl Demo {
 			gl::MatrixMode( gl::MODELVIEW );
 
 			// This is essentially a gluLookAt call
-			let mat: Matrix4<f32> = if self.cockpit {
-				Matrix4::look_at(
-					Point3::new(-0.4, 1.8, -4.9), 
-					Point3::new(0.0, 0.0, -25.0),
-					Vector3::new(0.0, 1.0, 0.0)
-				)
-			} else {
-				Matrix4::look_at(
-					Point3::new(-1.0, 2.0, 3.0), 
-					Point3::new(0.0, 0.0, 0.0),
-					Vector3::new(0.0, 1.0, 0.0)
-				)
-			};
+			let mat: Matrix4<f32> = Matrix4::look_at(
+				Point3::new(-1.0, 2.0, 3.0), 
+				Point3::new(0.0, 0.0, 0.0),
+				Vector3::new(0.0, 1.0, 0.0)
+			);
 			let arr: &[f32; 16] = mat.as_ref();
 			gl::LoadMatrixf(arr.as_ptr());
 
 			gl::ShadeModel(gl::SMOOTH);
-			
-			if !self.cockpit {
-				// uniformly scale the scene:
-				gl::Scalef( self.scale, self.scale, self.scale );
-				// rotate the scene:
-				gl::Rotatef(self.yrot, 0.0, 1.0, 0.0);
-				gl::Rotatef(self.xrot, 1.0, 0.0, 1.0);
-			}
+
+			gl::Rotatef(self.yrot, 0.0, 1.0, 0.0);
+			gl::Rotatef(self.xrot, 1.0, 0.0, 0.0);
+			gl::Scalef(self.scale, self.scale, self.scale);
 
 			// Draw the objects:
-			gl::PushMatrix();
-			gl::Translatef(0.0, 0.0, -20.0);
-			gl::Rotatef(20.0, 1.0, 0.0, 0.0);
-			self.ship.draw();
 			self.axis.draw();
+			// gl::Translatef(-7.5, -7.5, 0.0);
 			self.ocean.draw();
-			gl::PopMatrix();
-
-			// Propeller reference points:
-			// gl::Begin(gl::POINTS);
-			// 	gl::Color3f(1.0, 1.0, 0.0);
-			// 	gl::Vertex3f(0.0, 2.9, -2.0);
-			// 	gl::Vertex3f(0.5, 2.5, 9.0);
-			// gl::End();
-
-			self.helicopter.draw();
-
-			// Main Rotor:
-			gl::PushMatrix();
-			gl::Translatef(0.0, 2.9, -2.0);
-			gl::Scalef(5.0, 5.0, 5.0);
-			gl::Rotatef(self.propeller_rot, 0.0, 1.0, 0.0);
-			gl::Rotatef(90.0, 1.0, 0.0, 0.0);
-			self.propeller.draw();
-			gl::PopMatrix();
-
-			// Back Rotor:
-			gl::PushMatrix();
-			gl::Translatef(0.5, 2.5, 9.0);
-			gl::Scalef(1.5, 1.5, 1.5);
-			gl::Rotatef(3.0 * self.propeller_rot, 1.0, 0.0, 0.0);
-			gl::Rotatef(90.0, 0.0, 1.0, 0.0);
-			self.propeller.draw();
-			gl::PopMatrix();
 
 			gl::Flush();
         }
@@ -232,9 +186,6 @@ impl Demo {
 	fn toggle_paused(&mut self) {
 		self.paused = !self.paused;
 	}
-	fn toggle_wireframe(&mut self) {
-		self.helicopter.toggle_wireframe();
-	}
 	fn scroll_delta(&mut self, diff_y: f32) {
 		if !self.cockpit {
 			self.scale -= diff_y / 80.0;
@@ -262,8 +213,8 @@ fn main() {
 
 	// Proxy used for sending commands from the context menu to the main loop
 	let proxy = event_loop.create_proxy();
-    event_loop.run(move |event, window_target, control_flow| {
-		println!("{:?}", event);
+    event_loop.run(move |event, _window_target, control_flow| {
+		// println!("{:?}", event);
         *control_flow = ControlFlow::Poll;
 
         match event {
@@ -284,7 +235,8 @@ fn main() {
 							// Handle Magic Keys
 							'c' | 'C' => demo.toggle_cockpit(),
 							'f' | 'F' => demo.toggle_paused(),
-							'w' | 'W' => demo.toggle_wireframe(),
+							'm' | 'M' => demo.ocean.toggle_morph(),
+							't' | 'T' => demo.ocean.toggle_texture(),
 							_ => ()
 						},
 						_ => (),
@@ -319,18 +271,6 @@ fn main() {
 				DeviceEvent::Button{button: 2, state } => demo.button_states.middle = *state,
 				DeviceEvent::Button{button: 3, state } => {
 					demo.button_states.right = *state;
-
-					// Also open the context menu - In a new thread so that we can hijack that thread for the new window's event loop.
-					if let ElementState::Pressed = state {
-						let context_window_builder = WindowBuilder::new()
-							.with_decorations(false);
-							// .with_always_on_top(true);
-
-						let _windowed_context =
-							ContextBuilder::new()
-							.with_gl(GlRequest::Specific(OpenGl, (2, 1)))
-							.build_windowed(context_window_builder, &window_target).unwrap();
-					}
 				},
 				_ => ()
 			},
