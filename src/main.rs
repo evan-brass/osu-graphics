@@ -32,6 +32,12 @@ use gl::types::*;
 mod mesh;
 use mesh::*;
 
+mod light;
+use light::*;
+
+mod material;
+use material::*;
+
 struct ButtonStates {
 	left: ElementState,
 	middle: ElementState,
@@ -50,6 +56,8 @@ struct Demo {
 	pub axis: Axis,
 	pub ship: Ship,
 	pub ocean: Ocean,
+	pub cone: Cone,
+	pub light_0: Light,
 	cockpit: bool,
 	paused: bool,
 	// fog_on: bool
@@ -86,6 +94,8 @@ impl Demo {
 			propeller: Propeller::new(),
 			propeller_rot: 0.0,
 			ocean: Ocean::new(),
+			cone: Cone::new(),
+			light_0: Light::new(0),
 			cockpit: false,
 			paused: false
 		}
@@ -105,8 +115,11 @@ impl Demo {
 			gl::Enable( gl::NORMALIZE );
 		}
 
-		self.ocean.init();
+		// self.ocean.init();
 		self.axis.init();
+		self.cone.init();
+		self.light_0.place(3.0, 5.0, 1.0, 1.0);
+		self.light_0.diffuse(255.0, 0.0, 0.0);
 	}
 	fn draw(&mut self) {
 		unsafe {
@@ -142,10 +155,14 @@ impl Demo {
 			gl::Rotatef(self.xrot, 1.0, 0.0, 0.0);
 			gl::Scalef(self.scale, self.scale, self.scale);
 
+			self.light_0.call();
+
 			// Draw the objects:
 			self.axis.draw();
-			// gl::Translatef(-7.5, -7.5, 0.0);
-			self.ocean.draw();
+			// gl::Scalef(0.01, 0.01, 0.01);
+			gl::Enable(gl::LIGHTING);
+			self.cone.draw();
+			gl::Disable(gl::LIGHTING);
 
 			gl::Flush();
         }
@@ -160,10 +177,10 @@ impl Demo {
 				},
 				Some(last_inst) => {
 					// Diff is the # of miliseconds since the last animate call.
-					let diff = now.duration_since(last_inst).as_millis();
+					let _diff = now.duration_since(last_inst).as_millis();
 					// self.yrot += diff as f32 / 50.0;
-					self.ocean.animate(diff as f32);
-					self.propeller_rot += diff as f32 / 2.0;
+					// self.ocean.animate(diff as f32);
+					// self.propeller_rot += diff as f32 / 2.0;
 				}
 			}
 		}

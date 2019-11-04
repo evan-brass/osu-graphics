@@ -41,7 +41,7 @@ impl Mesh for Axis {
 				// X-axis label
 				gl::Color3f(1.0, 0.0, 0.0);
 				gl::PushMatrix();
-				gl::Rotatef(90.0, 0.0, 0.0, 1.0);
+				gl::Rotatef(-90.0, 0.0, 0.0, 1.0);
 				gl::CallList(axis);
 				gl::PopMatrix();
 				// Z-axis label
