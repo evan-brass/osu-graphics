@@ -20,7 +20,10 @@ use glutin::{
 use cgmath::{Matrix4, Deg, PerspectiveFov, Point3, Vector3};
 
 use std::{
-	time::Instant,
+	time::{
+		Instant,
+		Duration
+	},
 	ffi::CStr,
 	thread, 
 	sync::{Arc, Mutex}
@@ -38,30 +41,31 @@ use light::*;
 mod material;
 use material::*;
 
+struct SceneItem<'a> {
+	pub anim: &'a dyn FnMut(Duration),
+	pub draw: &'a dyn FnMut()
+}
+type SceneInit<'a> = dyn FnOnce() -> SceneItem<'a>;
+
+
 struct ButtonStates {
 	left: ElementState,
 	middle: ElementState,
 	right: ElementState
 }
 const WATER_SIZE: usize = 20;
-struct Demo {
+struct Demo<'a> {
 	pub wrapped_context: WindowedContext<PossiblyCurrent>,
+
 	last_animate: Option<Instant>,
+	button_states: ButtonStates,
+	paused: bool,
+
 	yrot: f32,
 	xrot: f32,
 	scale: f32,
-	pub helicopter: Helicopter,
-	pub propeller: Propeller,
-	propeller_rot: f32,
-	pub axis: Axis,
-	pub ship: Ship,
-	pub ocean: Ocean,
-	pub cone: Cone,
-	pub light_0: Light,
-	cockpit: bool,
-	paused: bool,
-	// fog_on: bool
-	button_states: ButtonStates
+
+	scene: &SceneItem<'a>
 }
 
 #[derive(Debug)]
@@ -69,38 +73,15 @@ enum CustomEvents {
 	Nothing,
 }
 
-impl Demo {
-	fn new(wrapped_context: WindowedContext<PossiblyCurrent>) -> Demo {
+impl Demo<'a> {
+	fn new(wrapped_context: WindowedContext<PossiblyCurrent>, input: SceneInit<'a>) -> Demo<'a> {
 		println!(
 			"Pixel format of the window's GL context: {:?}",
 			wrapped_context.get_pixel_format()
 		);
 		gl::load_with(|ptr| wrapped_context.context().get_proc_address(ptr) as *const _);
 
-		Demo { 
-			wrapped_context,
-			last_animate: None,
-			yrot: 0.0, xrot: 0.0,
-			scale: 0.5,
-			// fog_on: false
-			button_states: ButtonStates {
-				left: ElementState::Released,
-				middle: ElementState::Released,
-				right: ElementState::Released
-			},
-			helicopter: Helicopter::new(),
-			axis: Axis::new(),
-			ship: Ship::new(),
-			propeller: Propeller::new(),
-			propeller_rot: 0.0,
-			ocean: Ocean::new(),
-			cone: Cone::new(),
-			light_0: Light::new(0),
-			cockpit: false,
-			paused: false
-		}
-	}
-	fn init(&mut self) {
+		
 		let version = unsafe {
 			let data = CStr::from_ptr(gl::GetString(gl::VERSION) as *const _)
 				.to_bytes()
@@ -114,12 +95,24 @@ impl Demo {
 			// since we are using glScalef( ), be sure normals get unitized:
 			gl::Enable( gl::NORMALIZE );
 		}
+		
+		// Call the input closure and 
+		let scene = input();
 
-		// self.ocean.init();
-		self.axis.init();
-		self.cone.init();
-		self.light_0.place(3.0, 5.0, 1.0, 1.0);
-		self.light_0.diffuse(255.0, 0.0, 0.0);
+		Demo { 
+			wrapped_context,
+			last_animate: None,
+			yrot: 0.0, xrot: 0.0,
+			scale: 0.5,
+			// fog_on: false
+			button_states: ButtonStates {
+				left: ElementState::Released,
+				middle: ElementState::Released,
+				right: ElementState::Released
+			},
+			scene,
+			paused: false
+		}
 	}
 	fn draw(&mut self) {
 		unsafe {
@@ -151,18 +144,15 @@ impl Demo {
 
 			gl::ShadeModel(gl::SMOOTH);
 
+			// Rotate the scene using the mouse
 			gl::Rotatef(self.yrot, 0.0, 1.0, 0.0);
 			gl::Rotatef(self.xrot, 1.0, 0.0, 0.0);
 			gl::Scalef(self.scale, self.scale, self.scale);
 
-			self.light_0.call();
-
-			// Draw the objects:
-			self.axis.draw();
-			// gl::Scalef(0.01, 0.01, 0.01);
-			gl::Enable(gl::LIGHTING);
-			self.cone.draw();
-			gl::Disable(gl::LIGHTING);
+			// Draw all the scene items:
+			for item in self.scene_items.iter() {
+				*item.draw();
+			}
 
 			gl::Flush();
         }
@@ -177,10 +167,10 @@ impl Demo {
 				},
 				Some(last_inst) => {
 					// Diff is the # of miliseconds since the last animate call.
-					let _diff = now.duration_since(last_inst).as_millis();
-					// self.yrot += diff as f32 / 50.0;
-					// self.ocean.animate(diff as f32);
-					// self.propeller_rot += diff as f32 / 2.0;
+					let diff = now.duration_since(last_inst);
+					for item in self.scene_items.iter() {
+						*item.anim(diff);
+					}
 				}
 			}
 		}
@@ -192,23 +182,18 @@ impl Demo {
 		self.wrapped_context.resize(logical_size.to_physical(dpi_factor));
 	}
 	fn mouse_move(&mut self, diff_x: f32, diff_y: f32) {
-		if !self.cockpit && self.button_states.left == ElementState::Pressed {
+		if self.button_states.left == ElementState::Pressed {
 			self.yrot += diff_x;
 			self.xrot += diff_y;
 		}
-	}
-	fn toggle_cockpit(&mut self) {
-		self.cockpit = !self.cockpit;
 	}
 	fn toggle_paused(&mut self) {
 		self.paused = !self.paused;
 	}
 	fn scroll_delta(&mut self, diff_y: f32) {
-		if !self.cockpit {
-			self.scale -= diff_y / 80.0;
-			if self.scale < 0.05 {
-				self.scale = 0.05;
-			}
+		self.scale -= diff_y / 80.0;
+		if self.scale < 0.05 {
+			self.scale = 0.05;
 		}
 	}
 }
@@ -223,9 +208,25 @@ fn main() {
 		.with_vsync(true)
 		.build_windowed(wb, &event_loop).unwrap();
 	
-	let mut demo = Demo::new(unsafe { windowed_context.make_current().unwrap() });
+	let mut demo = Demo::new(
+		unsafe { windowed_context.make_current().unwrap() },
+		// All the scene items
+		vec![
+			move || {
+				let cone = Cone::new();
+				cone.segments = 20;
 
-	demo.init();
+				Box::new(SceneItem {
+					anim: |diff| {
+
+					},
+					draw: || {
+						cone.draw();
+					}
+				})
+			}
+		]
+	);
 	demo.animate(); // Initialize variables and
 
 	// Proxy used for sending commands from the context menu to the main loop
@@ -250,10 +251,10 @@ fn main() {
 						},
 						WindowEvent::ReceivedCharacter(ch) => match ch {
 							// Handle Magic Keys
-							'c' | 'C' => demo.toggle_cockpit(),
+							// 'c' | 'C' => demo.toggle_cockpit(),
 							'f' | 'F' => demo.toggle_paused(),
-							'm' | 'M' => demo.ocean.toggle_morph(),
-							't' | 'T' => demo.ocean.toggle_texture(),
+							// 'm' | 'M' => demo.ocean.toggle_morph(),
+							// 't' | 'T' => demo.ocean.toggle_texture(),
 							_ => ()
 						},
 						_ => (),

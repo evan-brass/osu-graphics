@@ -14,7 +14,7 @@ pub struct Material {
 	ambient: [f32; 4],
 	pub shininess: f32
 }
-impl Light {
+impl Material {
 	pub fn new(active: ActiveFace) -> Self {
 		Self {
 			active,
@@ -34,7 +34,7 @@ impl Light {
 	pub fn ambient(&mut self, r: f32, g: f32, b: f32) {
 		self.ambient = [r, g, b, 1.0];
 	}
-	fn apply_to_face(face: GLenum) {
+	fn apply_to_face(&self, face: GLenum) {
 		unsafe {
 			gl::Materialfv( gl::FRONT, gl::AMBIENT, self.ambient.as_ptr());
 			gl::Materialfv( gl::FRONT, gl::DIFFUSE, self.diffuse.as_ptr());
@@ -57,8 +57,5 @@ impl Light {
 				self.apply_to_face(gl::BACK);
 			}
 		}
-	}
-	pub fn toggleEnable(&mut self) {
-		self.enabled = !self.enabled;
 	}
 }
