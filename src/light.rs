@@ -34,7 +34,7 @@ impl Light {
 			position: [0.0, 0.0, 0.0, 1.0],
 			diffuse: [0.8, 0.8, 0.8, 1.0],
 			specular: [0.4, 0.4, 0.4, 1.0],
-			ambient: [0.2, 0.2, 0.2, 1.0],
+			ambient: [0.0, 0.0, 0.0, 0.0],
 			ca: 0.0, la: 1.0, qa: 0.0
 		}
 	}
@@ -56,7 +56,7 @@ impl Light {
 		self.qa = q;
 	}
 	pub fn use_ambient(ar: f32, ag: f32, ab: f32) {
-		let arr = [ar, ag, ab];
+		let arr = [ar, ag, ab, 1.0];
 		unsafe {
 			gl::LightModelfv(gl::LIGHT_MODEL_AMBIENT, arr.as_ptr());
 		}

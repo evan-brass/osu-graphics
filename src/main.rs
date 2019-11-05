@@ -237,7 +237,8 @@ fn main() {
 			let mut light = Light::new(0);
 			light.attenuate(1.0, 0.0, 0.0);
 			light.diffuse(244.0, 179.0, 147.0);
-			light.specular(206.0, 236.0, 151.0);
+			light.specular(244.0, 179.0, 147.0);
+			Light::use_ambient(0.1, 0.1, 0.1);
 			light
 		},
 		mat_1: {
