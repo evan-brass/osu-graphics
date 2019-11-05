@@ -18,11 +18,11 @@ impl Material {
 	pub fn new(active: ActiveFace) -> Self {
 		Self {
 			active,
-			diffuse: [255.0, 255.0, 255.0, 1.0],
-			specular: [255.0, 255.0, 255.0, 1.0],
+			diffuse: [0.0, 1.0, 1.0, 1.0],
+			specular: [1.0, 1.0, 1.0, 1.0],
 			emission: [0.0, 0.0, 0.0, 1.0],
 			ambient: [0.0, 0.0, 0.0, 1.0],
-			shininess: 1.0
+			shininess: 0.0
 		}
 	}
 	pub fn diffuse(&mut self, r: f32, g: f32, b: f32) {
@@ -41,7 +41,7 @@ impl Material {
 			gl::Materialfv(face, gl::SPECULAR, self.specular.as_ptr());
 			gl::Materialf (face, gl::SHININESS, self.shininess);
 			gl::Materialfv(face, gl::EMISSION, self.emission.as_ptr());
-			// gl::LightModeli (gl::LIGHT_MODEL_TWO_SIDE,  gl::TRUE);
+			gl::LightModeli (gl::LIGHT_MODEL_TWO_SIDE, gl::TRUE as i32);
 		}
 	}
 	pub fn call(&self) {

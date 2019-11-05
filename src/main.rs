@@ -41,7 +41,7 @@ use material::*;
 
 trait SceneItem {
 	fn anim(&mut self, diff: Duration);
-	fn draw(&self);
+	fn draw(&mut self);
 }
 
 
@@ -51,7 +51,7 @@ struct ButtonStates {
 	right: ElementState
 }
 const WATER_SIZE: usize = 20;
-struct Demo<'a> {
+struct Demo {
 	pub wrapped_context: WindowedContext<PossiblyCurrent>,
 
 	last_animate: Option<Instant>,
@@ -62,7 +62,7 @@ struct Demo<'a> {
 	xrot: f32,
 	scale: f32,
 
-	scene_items: Vec<&mut dyn SceneItem + 'a>
+	scene_items: Vec<Box::<dyn SceneItem>>
 }
 
 #[derive(Debug)]
@@ -70,8 +70,8 @@ enum CustomEvents {
 	Nothing,
 }
 
-impl<'b> Demo {
-	fn new<'a>(wrapped_context: WindowedContext<PossiblyCurrent>, scene_items: Vec<&mut'a dyn SceneItem>) -> Demo<'a> {
+impl Demo {
+	fn new(wrapped_context: WindowedContext<PossiblyCurrent>, scene_items: Vec<Box::<dyn SceneItem>>) -> Demo {
 		println!(
 			"Pixel format of the window's GL context: {:?}",
 			wrapped_context.get_pixel_format()
@@ -91,10 +91,8 @@ impl<'b> Demo {
 			gl::Enable(gl::DEPTH_TEST);
 			// since we are using glScalef( ), be sure normals get unitized:
 			gl::Enable( gl::NORMALIZE );
+			// gl::Enable(gl::COLOR_MATERIAL);
 		}
-		
-		// Call the input closure and 
-		// let scene_items = input.iter().map(|item| item()).collect();
 
 		Demo { 
 			wrapped_context,
@@ -139,7 +137,7 @@ impl<'b> Demo {
 			let arr: &[f32; 16] = mat.as_ref();
 			gl::LoadMatrixf(arr.as_ptr());
 
-			gl::ShadeModel(gl::SMOOTH);
+			// gl::ShadeModel(gl::SMOOTH);
 
 			// Rotate the scene using the mouse
 			gl::Rotatef(self.yrot, 0.0, 1.0, 0.0);
@@ -148,7 +146,7 @@ impl<'b> Demo {
 
 			// Draw all the scene items:
 			for item in &mut self.scene_items {
-				(item.draw)();
+				item.draw();
 			}
 
 			gl::Flush();
@@ -166,7 +164,7 @@ impl<'b> Demo {
 					// Diff is the # of miliseconds since the last animate call.
 					let diff = now.duration_since(last_inst);
 					for item in &mut self.scene_items {
-						(item.anim)(diff);
+						item.anim(diff);
 					}
 				}
 			}
@@ -205,21 +203,56 @@ fn main() {
 		.with_vsync(true)
 		.build_windowed(wb, &event_loop).unwrap();
 	
-	let mut cone = Cone::new();
-	cone.segments = 20;
+	struct LightingProject {
+		torus: Torus,
+		light_1: Light,
+		mat_1: Material,
+		light_motion: f32
+	}
+	impl SceneItem for LightingProject {
+		fn anim(&mut self, diff: Duration) {
+			self.light_motion += diff.as_secs_f32();
+			self.light_1.place(0.0, 20.0 * self.light_motion.sin(), 0.0, 1.0);
+		}
+		fn draw(&mut self) {
+			unsafe {
+				self.light_1.call();
+				gl::Enable(gl::LIGHTING);
+				self.mat_1.call();
+				gl::ShadeModel(gl::FLAT);
+				self.torus.draw();
+				gl::Disable(gl::LIGHTING);
+
+			}
+		}
+	}
+	let lighting_project = LightingProject {
+		torus: {
+			let mut torus = Torus::new();
+			// torus.major_segments = 100;
+			// torus.minor_segments = 50;
+			torus
+		},
+		light_1: {
+			let mut light = Light::new(0);
+			light.attenuate(1.0, 0.0, 0.0);
+			light.diffuse(244.0, 179.0, 147.0);
+			light.specular(206.0, 236.0, 151.0);
+			light
+		},
+		mat_1: {
+			let mut material = Material::new(ActiveFace::Front);
+			material.diffuse(122.0, 40.0, 203.0);
+			material
+		},
+		light_motion: 0.0
+	};
 
 	let mut demo = Demo::new(
 		unsafe { windowed_context.make_current().unwrap() },
 		// All the scene items
 		vec![
-			SceneItem {
-				anim: Box::new(|_diff| {
-
-				}),
-				draw: Box::new(|| {
-					cone.draw();
-				})
-			}
+			Box::new(lighting_project)
 		]
 	);
 	demo.animate(); // Initialize variables and

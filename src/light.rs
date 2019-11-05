@@ -19,9 +19,9 @@ pub struct Light {
 	enabled: bool,
 	id: u32,
 	position: [f32; 4],
-	diffuse: [f32; 3],
-	specular: [f32; 3],
-	ambient: [f32; 3],
+	diffuse: [f32; 4],
+	specular: [f32; 4],
+	ambient: [f32; 4],
 	ca: f32,
 	la: f32,
 	qa: f32
@@ -32,23 +32,23 @@ impl Light {
 			enabled: true,
 			id,
 			position: [0.0, 0.0, 0.0, 1.0],
-			diffuse: [255.0, 255.0, 255.0],
-			specular: [255.0, 255.0, 255.0],
-			ambient: [0.0, 0.0, 0.0],
-			ca: 1.0, la: 0.0, qa: 0.0
+			diffuse: [0.8, 0.8, 0.8, 1.0],
+			specular: [0.4, 0.4, 0.4, 1.0],
+			ambient: [0.2, 0.2, 0.2, 1.0],
+			ca: 0.0, la: 1.0, qa: 0.0
 		}
 	}
 	pub fn place(&mut self, x: f32, y: f32, z: f32, w: f32) {
 		self.position = [x, y, z, w];
 	}
 	pub fn diffuse(&mut self, r: f32, g: f32, b: f32) {
-		self.diffuse = [r, g, b];
+		self.diffuse = [r, g, b, 1.0];
 	}
 	pub fn specular(&mut self, r: f32, g: f32, b: f32) {
-		self.specular = [r, g, b];
+		self.specular = [r, g, b, 1.0];
 	}
 	pub fn ambient(&mut self, r: f32, g: f32, b: f32) {
-		self.ambient = [r, g, b];
+		self.ambient = [r, g, b, 1.0];
 	}
 	pub fn attenuate(&mut self, c: f32, l: f32, q: f32) {
 		self.ca = c;
@@ -65,7 +65,7 @@ impl Light {
 		let light_enum = id_to_enum(self.id);
 		// println!("Light Enum is: {:?} ({:X})", light_enum, light_enum);
 		unsafe {
-			// gl::LightModeli (gl::LIGHT_MODEL_TWO_SIDE,  gl::TRUE);
+			gl::LightModeli (gl::LIGHT_MODEL_TWO_SIDE, gl::TRUE as i32);
 
 			gl::Lightfv(light_enum, gl::POSITION, self.position.as_ptr());
 			// Marker of where the point light is:
