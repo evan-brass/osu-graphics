@@ -34,18 +34,15 @@ use gl::types::*;
 
 mod mesh;
 use mesh::*;
-
 mod light;
 use light::*;
-
 mod material;
 use material::*;
 
-struct SceneItem<'a> {
-	pub anim: &'a dyn FnMut(Duration),
-	pub draw: &'a dyn FnMut()
+trait SceneItem {
+	fn anim(&mut self, diff: Duration);
+	fn draw(&self);
 }
-type SceneInit<'a> = dyn FnOnce() -> SceneItem<'a>;
 
 
 struct ButtonStates {
@@ -65,7 +62,7 @@ struct Demo<'a> {
 	xrot: f32,
 	scale: f32,
 
-	scene: &SceneItem<'a>
+	scene_items: Vec<&mut dyn SceneItem + 'a>
 }
 
 #[derive(Debug)]
@@ -73,8 +70,8 @@ enum CustomEvents {
 	Nothing,
 }
 
-impl Demo<'a> {
-	fn new(wrapped_context: WindowedContext<PossiblyCurrent>, input: SceneInit<'a>) -> Demo<'a> {
+impl<'b> Demo {
+	fn new<'a>(wrapped_context: WindowedContext<PossiblyCurrent>, scene_items: Vec<&mut'a dyn SceneItem>) -> Demo<'a> {
 		println!(
 			"Pixel format of the window's GL context: {:?}",
 			wrapped_context.get_pixel_format()
@@ -97,7 +94,7 @@ impl Demo<'a> {
 		}
 		
 		// Call the input closure and 
-		let scene = input();
+		// let scene_items = input.iter().map(|item| item()).collect();
 
 		Demo { 
 			wrapped_context,
@@ -110,7 +107,7 @@ impl Demo<'a> {
 				middle: ElementState::Released,
 				right: ElementState::Released
 			},
-			scene,
+			scene_items,
 			paused: false
 		}
 	}
@@ -150,8 +147,8 @@ impl Demo<'a> {
 			gl::Scalef(self.scale, self.scale, self.scale);
 
 			// Draw all the scene items:
-			for item in self.scene_items.iter() {
-				*item.draw();
+			for item in &mut self.scene_items {
+				(item.draw)();
 			}
 
 			gl::Flush();
@@ -168,8 +165,8 @@ impl Demo<'a> {
 				Some(last_inst) => {
 					// Diff is the # of miliseconds since the last animate call.
 					let diff = now.duration_since(last_inst);
-					for item in self.scene_items.iter() {
-						*item.anim(diff);
+					for item in &mut self.scene_items {
+						(item.anim)(diff);
 					}
 				}
 			}
@@ -208,21 +205,19 @@ fn main() {
 		.with_vsync(true)
 		.build_windowed(wb, &event_loop).unwrap();
 	
+	let mut cone = Cone::new();
+	cone.segments = 20;
+
 	let mut demo = Demo::new(
 		unsafe { windowed_context.make_current().unwrap() },
 		// All the scene items
 		vec![
-			move || {
-				let cone = Cone::new();
-				cone.segments = 20;
+			SceneItem {
+				anim: Box::new(|_diff| {
 
-				Box::new(SceneItem {
-					anim: |diff| {
-
-					},
-					draw: || {
-						cone.draw();
-					}
+				}),
+				draw: Box::new(|| {
+					cone.draw();
 				})
 			}
 		]

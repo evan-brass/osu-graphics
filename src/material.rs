@@ -36,11 +36,11 @@ impl Material {
 	}
 	fn apply_to_face(&self, face: GLenum) {
 		unsafe {
-			gl::Materialfv( gl::FRONT, gl::AMBIENT, self.ambient.as_ptr());
-			gl::Materialfv( gl::FRONT, gl::DIFFUSE, self.diffuse.as_ptr());
-			gl::Materialfv( gl::FRONT, gl::SPECULAR, self.specular.as_ptr());
-			gl::Materialf ( gl::FRONT, gl::SHININESS, self.shininess);
-			gl::Materialfv( gl::FRONT, gl::EMISSION, self.emission.as_ptr());
+			gl::Materialfv(face, gl::AMBIENT, self.ambient.as_ptr());
+			gl::Materialfv(face, gl::DIFFUSE, self.diffuse.as_ptr());
+			gl::Materialfv(face, gl::SPECULAR, self.specular.as_ptr());
+			gl::Materialf (face, gl::SHININESS, self.shininess);
+			gl::Materialfv(face, gl::EMISSION, self.emission.as_ptr());
 			// gl::LightModeli (gl::LIGHT_MODEL_TWO_SIDE,  gl::TRUE);
 		}
 	}
