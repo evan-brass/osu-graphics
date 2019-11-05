@@ -65,6 +65,11 @@ impl Light {
 		let light_enum = id_to_enum(self.id);
 		// println!("Light Enum is: {:?} ({:X})", light_enum, light_enum);
 		unsafe {
+			if self.enabled {
+				gl::Enable(light_enum);
+			} else {
+				gl::Disable(light_enum);
+			}
 			gl::LightModeli (gl::LIGHT_MODEL_TWO_SIDE, gl::TRUE as i32);
 
 			gl::Lightfv(light_enum, gl::POSITION, self.position.as_ptr());
@@ -74,17 +79,12 @@ impl Light {
 				gl::Vertex3f(self.position[0], self.position[1], self.position[2]);
 			gl::End();
 
-			gl::Lightfv(light_enum, gl::AMBIENT, self.ambient.as_ptr());
-			gl::Lightfv(light_enum, gl::DIFFUSE, self.diffuse.as_ptr());
-			gl::Lightfv(light_enum, gl::SPECULAR, self.specular.as_ptr());
-			gl::Lightf (light_enum, gl::CONSTANT_ATTENUATION, self.ca);
-			gl::Lightf (light_enum, gl::LINEAR_ATTENUATION, self.la);
-			gl::Lightf (light_enum, gl::QUADRATIC_ATTENUATION, self.qa);
-			if self.enabled {
-				gl::Enable(light_enum);
-			} else {
-				gl::Disable(light_enum);
-			}
+			// gl::Lightfv(light_enum, gl::AMBIENT, self.ambient.as_ptr());
+			// gl::Lightfv(light_enum, gl::DIFFUSE, self.diffuse.as_ptr());
+			// gl::Lightfv(light_enum, gl::SPECULAR, self.specular.as_ptr());
+			// gl::Lightf (light_enum, gl::CONSTANT_ATTENUATION, self.ca);
+			// gl::Lightf (light_enum, gl::LINEAR_ATTENUATION, self.la);
+			// gl::Lightf (light_enum, gl::QUADRATIC_ATTENUATION, self.qa);
 		}
 	}
 	pub fn toggleEnable(&mut self) {

@@ -40,6 +40,7 @@ mod material;
 use material::*;
 
 trait SceneItem {
+	fn init(&mut self);
 	fn anim(&mut self, diff: Duration);
 	fn draw(&mut self);
 }
@@ -92,6 +93,10 @@ impl Demo {
 			// since we are using glScalef( ), be sure normals get unitized:
 			gl::Enable( gl::NORMALIZE );
 			// gl::Enable(gl::COLOR_MATERIAL);
+		}
+
+		for item in scene_items {
+			item.init();
 		}
 
 		Demo { 
@@ -209,7 +214,17 @@ fn main() {
 		mat_1: Material,
 		light_motion: f32
 	}
+	imple LightingProject {
+		fn new() -> Self {
+			LightingProject {
+
+			}
+		}
+	}
 	impl SceneItem for LightingProject {
+		fn init() {
+
+		}
 		fn anim(&mut self, diff: Duration) {
 			self.light_motion += diff.as_secs_f32();
 			self.light_1.place(0.0, 20.0 * self.light_motion.sin(), 0.0, 1.0);
@@ -238,7 +253,7 @@ fn main() {
 			light.attenuate(1.0, 0.0, 0.0);
 			light.diffuse(244.0, 179.0, 147.0);
 			light.specular(244.0, 179.0, 147.0);
-			Light::use_ambient(0.1, 0.1, 0.1);
+			// Light::use_ambient(0.1, 0.1, 0.1);
 			light
 		},
 		mat_1: {
