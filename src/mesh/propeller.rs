@@ -37,7 +37,7 @@ impl Mesh for Propeller {
 			gl::EndList();
 		}
 	}
-	fn draw(&mut self) {
+	fn draw(&self) {
 		unsafe {
 			gl::CallList(self.display_list);
 		}

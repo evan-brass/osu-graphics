@@ -74,7 +74,7 @@ impl Mesh for Ocean {
 		}
 		
 	}
-	fn draw(&mut self) {
+	fn draw(&self) {
 		let total_width = 15.0;
 		let total_height = total_width;
 		let tex_width = 1.0 / self.offsets.len() as f32;

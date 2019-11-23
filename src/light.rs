@@ -79,12 +79,12 @@ impl Light {
 				gl::Vertex3f(self.position[0], self.position[1], self.position[2]);
 			gl::End();
 
-			// gl::Lightfv(light_enum, gl::AMBIENT, self.ambient.as_ptr());
-			// gl::Lightfv(light_enum, gl::DIFFUSE, self.diffuse.as_ptr());
-			// gl::Lightfv(light_enum, gl::SPECULAR, self.specular.as_ptr());
-			// gl::Lightf (light_enum, gl::CONSTANT_ATTENUATION, self.ca);
-			// gl::Lightf (light_enum, gl::LINEAR_ATTENUATION, self.la);
-			// gl::Lightf (light_enum, gl::QUADRATIC_ATTENUATION, self.qa);
+			gl::Lightfv(light_enum, gl::AMBIENT, self.ambient.as_ptr());
+			gl::Lightfv(light_enum, gl::DIFFUSE, self.diffuse.as_ptr());
+			gl::Lightfv(light_enum, gl::SPECULAR, self.specular.as_ptr());
+			gl::Lightf (light_enum, gl::CONSTANT_ATTENUATION, self.ca);
+			gl::Lightf (light_enum, gl::LINEAR_ATTENUATION, self.la);
+			gl::Lightf (light_enum, gl::QUADRATIC_ATTENUATION, self.qa);
 		}
 	}
 	pub fn toggleEnable(&mut self) {

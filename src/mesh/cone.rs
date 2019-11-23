@@ -21,10 +21,10 @@ impl Cone {
 }
 impl Mesh for Cone {
 	fn init(&mut self) {}
-	fn draw(&mut self) {
+	fn draw(&self) {
 		let segment_angle = 2.0 * PI / self.segments as f32;
 		unsafe {
-			gl::Color3f(0.0, 255.0, 255.0);
+			gl::Color3f(0.0, 1.0, 1.0);
 			
 			gl::Enable(gl::CULL_FACE);
 			gl::Begin(gl::TRIANGLES);

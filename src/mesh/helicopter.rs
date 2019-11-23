@@ -76,7 +76,7 @@ impl Mesh for Helicopter {
 			self.build_list();
 		}
 	}
-	fn draw(&mut self) {
+	fn draw(&self) {
 		unsafe {
 			gl::CallList(self.display_list);
 		}
