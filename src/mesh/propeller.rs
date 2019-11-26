@@ -4,13 +4,11 @@ use crate::gl;
 use gl::types::*;
 
 pub struct Propeller {
-	display_list: GLuint
+	display_list: GLuint,
 }
 impl Propeller {
 	pub fn new() -> Propeller {
-		Propeller {
-			display_list: 0
-		}
+		Propeller { display_list: 0 }
 	}
 }
 impl Mesh for Propeller {
@@ -24,16 +22,16 @@ impl Mesh for Propeller {
 			// draw the helicopter blade with radius BLADE_RADIUS and
 			//	width BLADE_WIDTH centered at (0.,0.,0.) in the XY plane
 			gl::NewList(self.display_list, gl::COMPILE);
-				gl::Color3f(1.0, 1.0, 1.0);
-				gl::Begin(gl::TRIANGLES);
-					gl::Vertex2f(  BLADE_RADIUS,  BLADE_WIDTH/2. );
-					gl::Vertex2f(  0., 0. );
-					gl::Vertex2f(  BLADE_RADIUS, -BLADE_WIDTH/2. );
+			gl::Color3f(1.0, 1.0, 1.0);
+			gl::Begin(gl::TRIANGLES);
+			gl::Vertex2f(BLADE_RADIUS, BLADE_WIDTH / 2.);
+			gl::Vertex2f(0., 0.);
+			gl::Vertex2f(BLADE_RADIUS, -BLADE_WIDTH / 2.);
 
-					gl::Vertex2f( -BLADE_RADIUS, -BLADE_WIDTH/2. );
-					gl::Vertex2f(  0., 0. );
-					gl::Vertex2f( -BLADE_RADIUS,  BLADE_WIDTH/2. );
-				gl::End();
+			gl::Vertex2f(-BLADE_RADIUS, -BLADE_WIDTH / 2.);
+			gl::Vertex2f(0., 0.);
+			gl::Vertex2f(-BLADE_RADIUS, BLADE_WIDTH / 2.);
+			gl::End();
 			gl::EndList();
 		}
 	}

@@ -4,7 +4,7 @@ use gl::types::*;
 pub enum ActiveFace {
 	Front,
 	Back,
-	FrontAndBack
+	FrontAndBack,
 }
 pub struct Material {
 	pub active: ActiveFace,
@@ -12,7 +12,7 @@ pub struct Material {
 	specular: [f32; 4],
 	emission: [f32; 4],
 	ambient: [f32; 4],
-	pub shininess: f32
+	pub shininess: f32,
 }
 impl Material {
 	pub fn new(active: ActiveFace) -> Self {
@@ -22,7 +22,7 @@ impl Material {
 			specular: [1.0, 1.0, 1.0, 1.0],
 			emission: [0.0, 0.0, 0.0, 1.0],
 			ambient: [0.0, 0.0, 0.0, 1.0],
-			shininess: 0.0
+			shininess: 0.0,
 		}
 	}
 	pub fn diffuse(&mut self, r: f32, g: f32, b: f32) {
@@ -39,19 +39,19 @@ impl Material {
 			gl::Materialfv(face, gl::AMBIENT, self.ambient.as_ptr());
 			gl::Materialfv(face, gl::DIFFUSE, self.diffuse.as_ptr());
 			gl::Materialfv(face, gl::SPECULAR, self.specular.as_ptr());
-			gl::Materialf (face, gl::SHININESS, self.shininess);
+			gl::Materialf(face, gl::SHININESS, self.shininess);
 			gl::Materialfv(face, gl::EMISSION, self.emission.as_ptr());
-			gl::LightModeli (gl::LIGHT_MODEL_TWO_SIDE, gl::TRUE as i32);
+			gl::LightModeli(gl::LIGHT_MODEL_TWO_SIDE, gl::TRUE as i32);
 		}
 	}
 	pub fn call(&self) {
 		match self.active {
 			ActiveFace::Front => {
 				self.apply_to_face(gl::FRONT);
-			},
+			}
 			ActiveFace::Back => {
 				self.apply_to_face(gl::BACK);
-			},
+			}
 			ActiveFace::FrontAndBack => {
 				self.apply_to_face(gl::FRONT);
 				self.apply_to_face(gl::BACK);

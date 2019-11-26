@@ -11,7 +11,7 @@ fn id_to_enum(id: u32) -> GLenum {
 		5 => gl::LIGHT5,
 		6 => gl::LIGHT6,
 		7 => gl::LIGHT7,
-		_ => panic!("The light id ({:?}) is out of bounds [0, 7]", id)
+		_ => panic!("The light id ({:?}) is out of bounds [0, 7]", id),
 	}
 }
 
@@ -24,7 +24,7 @@ pub struct Light {
 	ambient: [f32; 4],
 	ca: f32,
 	la: f32,
-	qa: f32
+	qa: f32,
 }
 impl Light {
 	pub fn new(id: u32) -> Self {
@@ -35,7 +35,9 @@ impl Light {
 			diffuse: [0.8, 0.8, 0.8, 1.0],
 			specular: [0.4, 0.4, 0.4, 1.0],
 			ambient: [0.0, 0.0, 0.0, 0.0],
-			ca: 0.0, la: 1.0, qa: 0.0
+			ca: 0.0,
+			la: 1.0,
+			qa: 0.0,
 		}
 	}
 	pub fn place(&mut self, x: f32, y: f32, z: f32, w: f32) {
@@ -70,21 +72,21 @@ impl Light {
 			} else {
 				gl::Disable(light_enum);
 			}
-			gl::LightModeli (gl::LIGHT_MODEL_TWO_SIDE, gl::TRUE as i32);
+			gl::LightModeli(gl::LIGHT_MODEL_TWO_SIDE, gl::TRUE as i32);
 
 			gl::Lightfv(light_enum, gl::POSITION, self.position.as_ptr());
 			// Marker of where the point light is:
 			gl::Begin(gl::POINTS);
-				gl::Color3f(self.diffuse[0], self.diffuse[1], self.diffuse[2]);
-				gl::Vertex3f(self.position[0], self.position[1], self.position[2]);
+			gl::Color3f(self.diffuse[0], self.diffuse[1], self.diffuse[2]);
+			gl::Vertex3f(self.position[0], self.position[1], self.position[2]);
 			gl::End();
 
 			gl::Lightfv(light_enum, gl::AMBIENT, self.ambient.as_ptr());
 			gl::Lightfv(light_enum, gl::DIFFUSE, self.diffuse.as_ptr());
 			gl::Lightfv(light_enum, gl::SPECULAR, self.specular.as_ptr());
-			gl::Lightf (light_enum, gl::CONSTANT_ATTENUATION, self.ca);
-			gl::Lightf (light_enum, gl::LINEAR_ATTENUATION, self.la);
-			gl::Lightf (light_enum, gl::QUADRATIC_ATTENUATION, self.qa);
+			gl::Lightf(light_enum, gl::CONSTANT_ATTENUATION, self.ca);
+			gl::Lightf(light_enum, gl::LINEAR_ATTENUATION, self.la);
+			gl::Lightf(light_enum, gl::QUADRATIC_ATTENUATION, self.qa);
 		}
 	}
 	pub fn toggleEnable(&mut self) {

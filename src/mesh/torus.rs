@@ -9,7 +9,7 @@ pub struct Torus {
 	pub major_radius: f32,
 	pub major_segments: u32,
 	pub minor_radius: f32,
-	pub minor_segments: u32
+	pub minor_segments: u32,
 }
 impl Torus {
 	pub fn new() -> Self {
@@ -17,7 +17,7 @@ impl Torus {
 			major_radius: 3.0,
 			major_segments: 16,
 			minor_radius: 1.0,
-			minor_segments: 6
+			minor_segments: 6,
 		}
 	}
 }
@@ -40,16 +40,8 @@ impl Mesh for Torus {
 				fn do_single(a1: f32, a2: f32, ar: f32, ir: f32) {
 					let length = ar - ir * a2.sin();
 					unsafe {
-						gl::Normal3f(
-							- a1.sin() * a2.sin(),
-							a2.cos(),
-							- a1.cos() * a2.sin()
-						);
-						gl::Vertex3f(
-							length * a1.sin(),
-							ir * a2.cos(),
-							length * a1.cos(),
-						);
+						gl::Normal3f(-a1.sin() * a2.sin(), a2.cos(), -a1.cos() * a2.sin());
+						gl::Vertex3f(length * a1.sin(), ir * a2.cos(), length * a1.cos());
 					}
 				}
 				do_single(angle_1, angle_4, self.major_radius, self.minor_radius);
