@@ -1,0 +1,35 @@
+#version 330 compatibility
+
+layout(points) in;
+
+// layout(triangle_strip, max_vertices = 13) out;
+layout(line_strip, max_vertices = 13) out;
+
+uniform mat4 projection;
+
+in vData {
+    float size;
+    vec3 color;
+} vertices[];
+
+out gData {
+    vec3 color;
+} frag;
+
+void main() {
+    gl_Position = gl_in[0].gl_Position * projection;
+	frag.color = vertices[0].color;
+	EmitVertex();
+
+    gl_Position = (gl_in[0].gl_Position + vec4(0.0, 0.1, 0.0, 0.0)) * projection;
+	frag.color = vertices[0].color;
+	EmitVertex();
+
+    gl_Position = (gl_in[0].gl_Position + vec4(-0.1, -0.1, 0.0, 0.0)) * projection;
+	frag.color = vertices[0].color;
+	EmitVertex();
+
+    gl_Position = (gl_in[0].gl_Position + vec4(0.1, -0.1, 0.0, 0.0)) * projection;
+	frag.color = vertices[0].color;
+	EmitVertex();
+} 

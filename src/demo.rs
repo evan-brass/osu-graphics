@@ -19,11 +19,13 @@ use std::{
 	time::{Duration, Instant},
 };
 
-use crate::gl;
-use crate::gl::types::*;
-use crate::light::*;
-use crate::material::*;
-use crate::mesh::*;
+use super::{
+	gl,
+	gl::types::*
+};
+// use crate::light::*;
+// use crate::material::*;
+// use super::mesh::*;
 
 pub trait SceneItem {
 	fn anim(&mut self, update: Duration);
@@ -99,36 +101,10 @@ impl Demo {
 			gl::DrawBuffer(gl::BACK);
 			gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
-			gl::MatrixMode(gl::PROJECTION);
-
-			// This is essentially a gluPerspective call
-			let projection: Matrix4<f32> = PerspectiveFov {
-				fovy: Deg(90.0).into(),
-				aspect: 1.0,
-				near: 0.1,
-				far: 1000.0,
-			}
-			.into();
-			let arr: &[f32; 16] = projection.as_ref();
-			gl::LoadMatrixf(arr.as_ptr());
-
-			gl::MatrixMode(gl::MODELVIEW);
-
-			// This is essentially a gluLookAt call
-			let mat: Matrix4<f32> = Matrix4::look_at(
-				Point3::new(-1.0, 2.0, 3.0),
-				Point3::new(0.0, 0.0, 0.0),
-				Vector3::new(0.0, 1.0, 0.0),
-			);
-			let arr: &[f32; 16] = mat.as_ref();
-			gl::LoadMatrixf(arr.as_ptr());
-
-			// gl::ShadeModel(gl::SMOOTH);
-
 			// Rotate the scene using the mouse
-			gl::Rotatef(self.yrot, 0.0, 1.0, 0.0);
-			gl::Rotatef(self.xrot, 1.0, 0.0, 0.0);
-			gl::Scalef(self.scale, self.scale, self.scale);
+			// gl::Rotatef(self.yrot, 0.0, 1.0, 0.0);
+			// gl::Rotatef(self.xrot, 1.0, 0.0, 0.0);
+			// gl::Scalef(self.scale, self.scale, self.scale);
 
 			// Draw all the scene items:
 			for item in &mut self.scene_items {
