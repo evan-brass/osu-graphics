@@ -1,15 +1,18 @@
-#version 330 compatibility
+#version 330 core
 
 layout(points) in;
 
 // layout(triangle_strip, max_vertices = 13) out;
-layout(line_strip, max_vertices = 13) out;
+layout(points, max_vertices = 13) out;
 
 uniform mat4 projection;
+uniform mat4 view_matrix;
+mat4 combined = view_matrix * projection;
 
 in vData {
     float size;
     vec3 color;
+	vec4 position;
 } vertices[];
 
 out gData {
@@ -17,19 +20,19 @@ out gData {
 } frag;
 
 void main() {
-    gl_Position = gl_in[0].gl_Position * projection;
+    gl_Position = vertices[0].position * combined;
 	frag.color = vertices[0].color;
 	EmitVertex();
 
-    gl_Position = (gl_in[0].gl_Position + vec4(0.0, 0.1, 0.0, 0.0)) * projection;
+    gl_Position = (vec4(0.0, vertices[0].size, 0.0, 0.0)) * combined;
 	frag.color = vertices[0].color;
 	EmitVertex();
 
-    gl_Position = (gl_in[0].gl_Position + vec4(-0.1, -0.1, 0.0, 0.0)) * projection;
+    gl_Position = (vec4(-vertices[0].size, -vertices[0].size, 0.0, 0.0)) * combined;
 	frag.color = vertices[0].color;
 	EmitVertex();
 
-    gl_Position = (gl_in[0].gl_Position + vec4(0.1, -0.1, 0.0, 0.0)) * projection;
+    gl_Position = (vec4(vertices[0].size, -vertices[0].size, 0.0, 0.0)) * combined;
 	frag.color = vertices[0].color;
 	EmitVertex();
 } 

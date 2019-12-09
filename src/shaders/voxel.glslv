@@ -1,4 +1,4 @@
-#version 330
+#version 330 core
 
 in float size;
 in vec3 color;
@@ -9,6 +9,7 @@ uniform mat4 chunk_transform;
 out vData {
     float size;
     vec3 color;
+	vec4 position;
 } vert_out;
 
 const int WIDTH = 5;
@@ -22,7 +23,7 @@ void main() {
 	int y = int(mod(floor(gl_VertexID / DEPTH), HEIGHT));
 	int x = int(floor(gl_VertexID / DEP_HEI));
 
-    gl_Position = vec4(x, y, z, 1.0) * chunk_transform;
-    vert_out.color = color;
+    vert_out.position = vec4(x, y, z, 1.0) * chunk_transform;
+    vert_out.color = vec3(gl_VertexID, gl_VertexID, gl_VertexID);
 	vert_out.size = size;
 }

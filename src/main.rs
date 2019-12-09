@@ -17,7 +17,7 @@ use glutin::{
 	ContextBuilder, GlRequest,
 };
 
-use cgmath::{Deg, Matrix, Matrix4, PerspectiveFov, Point3, Vector3};
+use cgmath::{Deg, Matrix, Matrix4, SquareMatrix, PerspectiveFov, Point3, Vector3};
 
 use std::{
 	cell::RefCell, 
@@ -125,7 +125,7 @@ fn main() {
 	let wb = WindowBuilder::new().with_title("OpenGL / GLUT Sample -- Evan Brass");
 
 	let windowed_context = ContextBuilder::new()
-		.with_gl(GlRequest::Latest)
+		.with_gl(GlRequest::Specific(OpenGl, (4, 3)))
 		.with_vsync(true)
 		.build_windowed(wb, &event_loop)
 		.expect("Unable to build windowed Context");
@@ -145,7 +145,9 @@ fn main() {
 	}
 	#[derive(Clone)]
 	struct Chunk {
+		pub program: u32,
 		pub buffer_id: u32,
+		pub vao: u32,
 		pub x: f32,
 		pub y: f32,
 		pub z: f32
@@ -186,15 +188,46 @@ fn main() {
 	// TODO: Implement array access for the chunk that fetches / updates GPU memory:
 	//  - Update: https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glBufferSubData.xhtml
 	//  - Fetch: https://www.khronos.org/registry/OpenGL-Refpages/gl4/html/glGetBufferSubData.xhtml
+	static mut chunk_shader: u32 = 0;
 	impl Chunk {
+		unsafe fn build_chunk_shader() {
+			unsafe fn add_shader(program: u32, stage: u32, source: &[u8]) {
+				let id = gl::CreateShader(stage);
+				gl::ShaderSource(
+					id,
+					1,
+					[source.as_ptr() as *const _].as_ptr(),
+					[source.len() as i32].as_ptr(),
+				);
+				gl::CompileShader(id);
+				gl::AttachShader(program, id);
+			}
+			// Create the Chunk Shader
+			chunk_shader = gl::CreateProgram();
+
+			// Vertex Shader:
+			add_shader(chunk_shader, gl::VERTEX_SHADER, include_bytes!("shaders/voxel.glslv"));
+			// Geometry Shader:
+			add_shader(chunk_shader, gl::GEOMETRY_SHADER, include_bytes!("shaders/voxel.glslg"));
+			// Fragment Shader:
+			add_shader(chunk_shader, gl::FRAGMENT_SHADER, include_bytes!("shaders/voxel.glslf"));
+
+			gl::LinkProgram(chunk_shader);
+
+			// DEBUG:
+			print_program_data(chunk_shader);
+		}
 		fn new(x: f32, y: f32, z: f32) -> Chunk {
 			let mut ret = Chunk {
 				x, y, z,
-				buffer_id: unsafe { zeroed() }
+				program: unsafe{ zeroed() },
+				buffer_id: unsafe { zeroed() },
+				vao: unsafe{ zeroed() }
 			};
 			unsafe {
+				// 1) Create the buffer: Used for storing chunk_items (read and write)
 				gl::GenBuffers(1, &mut ret.buffer_id);
-				// Allocate the size of the buffer that we need without filling it with any data:
+				// 1.a) Allocate the size of the buffer that we need without filling it with any data:
 				gl::BindBuffer(gl::ARRAY_BUFFER, ret.buffer_id);
 				gl::BufferData(
 					gl::ARRAY_BUFFER, 
@@ -202,6 +235,56 @@ fn main() {
 					0 as *const c_void, 
 					gl::DYNAMIC_DRAW
 				);
+
+				// 2) Create the vao: Used for drawing.
+				gl::GenVertexArrays(1, &mut ret.vao);
+				gl::BindVertexArray(ret.vao);
+
+				if (chunk_shader == 0) {
+					unsafe { 
+						Chunk::build_chunk_shader(); 
+					}
+				}
+
+				// 3) Bind shader attributes to the VAO using a temporary ChunkItem to get the offsets
+				let temp = ChunkItem { size: 1.0, color: (1.0, 1.0, 1.0) };
+				
+				// 3.a) Size
+				let location = gl::GetAttribLocation(chunk_shader, b"size\0".as_ptr() as *const _);
+				let offset = &temp.size as *const _ as usize - &temp as *const _ as usize;
+				let size = size_of::<ChunkItem>();
+				if (location != -1) {
+					gl::VertexAttribPointer(
+						location as u32, // Specified  in vert shader
+						1,
+						gl::FLOAT,
+						gl::FALSE,
+						size as i32,
+						// Measure the distance to the start of the struct field and use that as the offset:
+						offset as *const c_void,
+					);
+					gl::EnableVertexAttribArray(location as u32);
+				} else {
+					println!("Attribute size didn't appear in the shader program.");
+				}
+				// 3.b) Color
+				let location = gl::GetAttribLocation(chunk_shader, "color\0".as_ptr() as *const _);
+				let offset = &temp.color as *const _ as usize - &temp as *const _ as usize;
+				let size = size_of::<ChunkItem>();
+				if (location != -1) {
+					gl::VertexAttribPointer(
+						location as u32,
+						3,
+						gl::FLOAT,
+						gl::FALSE,
+						size as i32,
+						// Measure the distance to the start of the struct field and use that as the offset:
+						offset as *const c_void,
+					);
+					gl::EnableVertexAttribArray(location as u32);
+				} else {
+					println!("Attribute color didn't appear in the shader program.");
+				}
 			}
 			ret
 		}
@@ -220,122 +303,25 @@ fn main() {
 
 		fn draw(&self) {
 			unsafe {
-				gl::BindBuffer(gl::ARRAY_BUFFER, self.buffer_id);
+				// Bind the program
+				gl::UseProgram(chunk_shader);
+				gl::BindVertexArray(self.vao);
+				// Move the chunk in model space + TODO: apply the scale from 0-1 -> 0-CHUNK_SIZE
+				let location = gl::GetUniformLocation(chunk_shader, b"chunk_transform\0".as_ptr() as *const _);
+				if (location != -1) {
+					let chunk_transform: Matrix4<f32> = Matrix4::from_translation(
+						Vector3::new(self.x, self.y, self.z)
+					);
+					gl::UniformMatrix4fv(
+						location,
+						1,
+						gl::FALSE,
+						chunk_transform.as_ptr()
+					);
+				}
 				gl::DrawArrays(gl::POINTS, 0, NUM_ITEMS as i32);
-				gl::BindBuffer(gl::ARRAY_BUFFER, 0);
-			}
-		}
-		fn init() {
-			unsafe fn add_shader(program: u32, stage: u32, source: &[u8]) {
-				let id = gl::CreateShader(stage);
-				gl::ShaderSource(
-					id,
-					1,
-					[source.as_ptr() as *const _].as_ptr(),
-					[source.len() as i32].as_ptr(),
-				);
-				gl::CompileShader(id);
-				gl::AttachShader(program, id);
-			}
-			unsafe {
-				// Create the voxel shader program:
-				let program = gl::CreateProgram();
-
-				// Vertex Shader:
-				add_shader(program, gl::VERTEX_SHADER, include_bytes!("shaders/voxel.glslv"));
-				// Geometry Shader:
-				add_shader(program, gl::GEOMETRY_SHADER, include_bytes!("shaders/voxel.glslg"));
-				// Fragment Shader:
-				add_shader(program, gl::FRAGMENT_SHADER, include_bytes!("shaders/voxel.glslf"));
-
-				gl::LinkProgram(program);
-				gl::UseProgram(program);
-
-				// DEBUG:
-				print_program_data(program);
-				
-				if gl::BindVertexArray::is_loaded() {
-					let mut vao = std::mem::zeroed();
-					gl::GenVertexArrays(1, &mut vao);
-					gl::BindVertexArray(vao);
-				}
-
-				// TODO: Set attribute locations
-				let temp = ChunkItem { size: 1.0, color: (1.0, 1.0, 1.0) };
-				
-				let location = gl::GetAttribLocation(program, b"size\0".as_ptr() as *const _);
-				let offset = &temp.size as *const _ as usize - &temp as *const _ as usize;
-				let size = size_of::<ChunkItem>();
-				if (location != -1) {
-					gl::VertexAttribPointer(
-						location as u32, // Specified  in vert shader
-						1,
-						gl::FLOAT,
-						gl::FALSE,
-						size as i32,
-						// Measure the distance to the start of the struct field and use that as the offset:
-						offset as *const c_void,
-					);
-					gl::EnableVertexAttribArray(location as u32);
-				} else {
-					println!("Attribute size didn't appear in the shader program.");
-				}
-				let location = gl::GetAttribLocation(program, "color\0".as_ptr() as *const _);
-				let offset = &temp.color as *const _ as usize - &temp as *const _ as usize;
-				let size = size_of::<ChunkItem>();
-				if (location != -1) {
-					gl::VertexAttribPointer(
-						location as u32,
-						3,
-						gl::FLOAT,
-						gl::FALSE,
-						size as i32,
-						// Measure the distance to the start of the struct field and use that as the offset:
-						offset as *const c_void,
-					);
-					gl::EnableVertexAttribArray(location as u32);
-				} else {
-					println!("Attribute color didn't appear in the shader program.");
-				}
-
-				// Setup Uniform variables:
-				let location = gl::GetUniformLocation(program, b"projection\0".as_ptr() as *const _);
-				if (location != -1) {
-					// This is essentially a gluPerspective call
-					let projection: Matrix4<f32> = PerspectiveFov {
-						fovy: Deg(90.0).into(),
-						aspect: 1.0,
-						near: 0.1,
-						far: 1000.0,
-					}
-					.into();
-					gl::UniformMatrix4fv(
-						location,
-						1,
-						gl::FALSE,
-						projection.as_ptr()
-					);
-				} else {
-					println!("Uniform projection didn't appear in the shader program.");
-				}
-				let location = gl::GetUniformLocation(program, b"chunk_transform\0".as_ptr() as *const _);
-				if (location != -1) {
-					// This is essentially a gluLookAt call
-					let look_at: Matrix4<f32> = Matrix4::look_at(
-						Point3::new(-1.0, 2.0, 3.0), // Eye location
-						Point3::new(0.0, 0.0, 0.0), // Center Point / Point of interest
-						Vector3::new(0.0, 1.0, 0.0), // Up vector
-					);
-					gl::UniformMatrix4fv(
-						location,
-						1,
-						gl::FALSE,
-						look_at.as_ptr()
-					);
-				} else {
-					println!("Uniform projection didn't appear in the shader program.");
-				}
-		
+				gl::BindVertexArray(0);
+				gl::UseProgram(0);
 			}
 		}
 	}
@@ -357,9 +343,6 @@ fn main() {
 					}
 				}
 			}
-
-			// Compile / init shader pipeline
-			Chunk::init();
 
 			let mut chunk = Chunk::new(0.0, 0.0, 0.0);
 			for i in 0..NUM_ITEMS {

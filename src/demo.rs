@@ -9,7 +9,7 @@ use glutin::{
 	ContextBuilder, GlRequest, PossiblyCurrent, WindowedContext,
 };
 
-use cgmath::{Deg, Matrix4, PerspectiveFov, Point3, Vector3};
+use cgmath::{Deg, Matrix, Matrix4, SquareMatrix, PerspectiveFov, Point3, Vector3};
 
 use std::{
 	cell::RefCell,
@@ -45,8 +45,8 @@ pub struct Demo {
 	pub button_states: ButtonStates,
 	paused: bool,
 
-	yrot: f32,
-	xrot: f32,
+	yrot: Deg<f32>,
+	xrot: Deg<f32>,
 	scale: f32,
 
 	scene_items: Vec<Box<dyn SceneItem>>,
@@ -73,9 +73,6 @@ impl Demo {
 		unsafe {
 			gl::ClearColor(0.0, 0.0, 0.0, 1.0);
 			gl::Enable(gl::DEPTH_TEST);
-			// since we are using glScalef( ), be sure normals get unitized:
-			// 			gl::Enable( gl::NORMALIZE );
-			// gl::Enable(gl::COLOR_MATERIAL);
 		}
 
 		let scene_items = scene_items.into_iter().map(|item| item()).collect();
@@ -83,8 +80,8 @@ impl Demo {
 		Demo {
 			wrapped_context,
 			last_animate: None,
-			yrot: 0.0,
-			xrot: 0.0,
+			yrot: Deg(0.0),
+			xrot: Deg(0.0),
 			scale: 0.5,
 			// fog_on: false
 			button_states: ButtonStates {
@@ -101,10 +98,50 @@ impl Demo {
 			gl::DrawBuffer(gl::BACK);
 			gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
-			// Rotate the scene using the mouse
-			// gl::Rotatef(self.yrot, 0.0, 1.0, 0.0);
-			// gl::Rotatef(self.xrot, 1.0, 0.0, 0.0);
-			// gl::Scalef(self.scale, self.scale, self.scale);
+			// Calculate the projection matrix:
+			// This is essentially a gluPerspective call
+			let projection: Matrix4<f32> = PerspectiveFov {
+				fovy: Deg(90.0).into(),
+				aspect: 1.0,
+				near: 0.1,
+				far: 1000.0,
+			}.into();
+
+			// Calculate the view matrix:
+			let mut view_matrix: Matrix4<f32> = Matrix4::look_at(
+				Point3::new(-1.0, 2.0, 3.0), // Eye location
+				Point3::new(0.0, 0.0, 0.0), // Center Point / Point of interest
+				Vector3::new(0.0, 1.0, 0.0), // Up vector
+			);
+			view_matrix = view_matrix * Matrix4::from_angle_x(self.xrot);
+			view_matrix = view_matrix * Matrix4::from_angle_y(self.yrot);
+			view_matrix = view_matrix * Matrix4::from_scale(self.scale);
+
+			// Setup the make view_matrix + projection available to shaders that want them.
+			let mut program = 0;
+			gl::GetIntegerv(gl::CURRENT_PROGRAM, &mut program);
+			if program != 0 {
+				let location = gl::GetUniformLocation(program as u32, b"view_matrix\0".as_ptr() as *const _);
+				if location != -1 {
+					gl::UniformMatrix4fv(
+						location,
+						1,
+						gl::FALSE,
+						view_matrix.as_ptr()
+					);
+				}
+				let location = gl::GetUniformLocation(program as u32, b"projection\0".as_ptr() as *const _);
+				if (location != -1) {
+					gl::UniformMatrix4fv(
+						location,
+						1,
+						gl::FALSE,
+						projection.as_ptr()
+					);
+				}
+			} else {
+				// println!("Shader doesn't use the view_matrix uniform.");
+			}
 
 			// Draw all the scene items:
 			for item in &mut self.scene_items {
@@ -141,8 +178,8 @@ impl Demo {
 	}
 	pub fn mouse_move(&mut self, diff_x: f32, diff_y: f32) {
 		if self.button_states.left == ElementState::Pressed {
-			self.yrot += diff_x;
-			self.xrot += diff_y;
+			self.yrot += Deg(diff_x);
+			self.xrot += Deg(diff_y);
 		}
 	}
 	pub fn toggle_paused(&mut self) {

@@ -1,11 +1,11 @@
-#version 330 compatibility
+#version 330 core
 
 in gData {
     vec3 color;
 } vert;
 
-out vec4 FragColor;
+layout(location = 0) out vec4 diffuseColor;
 
 void main() {
-    FragColor = vec4(vert.color, 1.0);
-} 
+    diffuseColor = vec4(vert.color, 1.0);
+}
