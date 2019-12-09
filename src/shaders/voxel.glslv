@@ -12,9 +12,9 @@ out vData {
 	vec4 position;
 } vert_out;
 
-const int WIDTH = 5;
-const int HEIGHT = 5;
-const int DEPTH = 5;
+const int WIDTH = 20;
+const int HEIGHT = 60;
+const int DEPTH = 20;
 const int DEP_HEI = DEPTH * HEIGHT;
 
 void main() {

@@ -19,6 +19,8 @@ use glutin::{
 
 use cgmath::{Deg, Matrix, Matrix4, SquareMatrix, PerspectiveFov, Point3, Vector3};
 
+use rand::prelude::*;
+
 use std::{
 	cell::RefCell, 
 	rc::Rc, 
@@ -133,11 +135,10 @@ fn main() {
 	const CHUNK_WIDTH: f32 = 10.0;
 	const CHUNK_HEIGHT: f32 = 10.0;
 	const CHUNK_DEPTH: f32 = 10.0;
-	const CHUNK_SIZE_WIDTH: usize = 5;
-	const CHUNK_SIZE_HEIGHT: usize = 5;
-	const CHUNK_SIZE_DEPTH: usize = 5;
+	const CHUNK_SIZE_WIDTH: usize = 20;
+	const CHUNK_SIZE_HEIGHT: usize = 60;
+	const CHUNK_SIZE_DEPTH: usize = 20;
 	const NUM_ITEMS: usize = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_DEPTH;
-	// #[repr(packed)] // TODO: Check if this helps...
 	#[derive(Clone, Copy, Debug)]
 	#[repr(packed)]
 	struct ChunkItem {
@@ -304,6 +305,8 @@ fn main() {
 
 		fn draw(&self) {
 			unsafe {
+				gl::Enable(gl::CULL_FACE);
+				
 				// Bind the program
 				gl::UseProgram(chunk_shader);
 				gl::BindVertexArray(self.vao);
@@ -336,7 +339,18 @@ fn main() {
 			}
 			impl SceneItem for VoxelProject {
 				fn anim(&mut self, update: Duration) {
-					
+					// Provide updates
+					for i in 0..NUM_ITEMS {
+						let accessor = self.chunks[0].access_index(i);
+						let mut rng = thread_rng();
+						let mut item = accessor.get();
+						let change_factor = 0.5 * update.as_secs_f32(); // 2.0 max change per second
+						item.color.0 = (item.color.0 + rng.gen_range(-change_factor, change_factor)).max(0.0).min(1.0);
+						item.color.1 = (item.color.1 + rng.gen_range(-change_factor, change_factor)).max(0.0).min(1.0);
+						item.color.2 = (item.color.2 + rng.gen_range(-change_factor, change_factor)).max(0.0).min(1.0);
+						item.size = (item.size + rng.gen_range(-change_factor, change_factor)).max(0.0).min(1.0);
+						accessor.set(item);
+					}
 				}
 				fn draw(&self) {
 					for chunk in self.chunks.iter() {
@@ -345,15 +359,18 @@ fn main() {
 				}
 			}
 
-			let mut chunk = Chunk::new(-2.5, -2.5, -2.5);
+			let mut chunk = Chunk::new(
+				-(CHUNK_SIZE_WIDTH as f32 / 2.0), 
+				-(CHUNK_SIZE_HEIGHT as f32 / 2.0), 
+				-(CHUNK_SIZE_DEPTH as f32 / 2.0)
+			);
 			for i in 0..NUM_ITEMS {
 				let accessor = chunk.access_index(i);
-				// println!("Before: {:?}", accessor.get());
+				let mut rng = thread_rng();
 				accessor.set(ChunkItem {
-					size: (i as f32 / NUM_ITEMS as f32),
-					color: (1.0, 1.0, 1.0)
+					size: rng.gen_range(0.0, 1.0),
+					color: (rng.gen_range(0.0, 1.0), rng.gen_range(0.0, 1.0), rng.gen_range(0.0, 1.0))
 				});
-				// println!("After: {:?}", accessor.get());
 			}
 
 			Box::new(VoxelProject {
