@@ -1,13 +1,13 @@
-#version 330 core
+#version 330 compatibility
 
 layout(points) in;
 
-// layout(triangle_strip, max_vertices = 13) out;
-layout(points, max_vertices = 13) out;
+layout(triangle_strip, max_vertices = 15) out;
+// layout(points, max_vertices = 13) out;
 
 uniform mat4 projection;
 uniform mat4 view_matrix;
-mat4 combined = view_matrix * projection;
+// I think that some of the matrices aren't being written to
 
 in vData {
     float size;
@@ -19,20 +19,25 @@ out gData {
     vec3 color;
 } frag;
 
+void emit_one(float x, float y, float z) {
+    gl_Position = projection * view_matrix * (vertices[0].position + vertices[0].size * vec4(x, y, z, 0.0));
+	frag.color = vertices[0].color;
+	EmitVertex();
+}
+
 void main() {
-    gl_Position = vertices[0].position * combined;
-	frag.color = vertices[0].color;
-	EmitVertex();
-
-    gl_Position = (vec4(0.0, vertices[0].size, 0.0, 0.0)) * combined;
-	frag.color = vertices[0].color;
-	EmitVertex();
-
-    gl_Position = (vec4(-vertices[0].size, -vertices[0].size, 0.0, 0.0)) * combined;
-	frag.color = vertices[0].color;
-	EmitVertex();
-
-    gl_Position = (vec4(vertices[0].size, -vertices[0].size, 0.0, 0.0)) * combined;
-	frag.color = vertices[0].color;
-	EmitVertex();
+	emit_one(-0.5,  0.5,  0.5); // Front-top-left
+    emit_one( 0.5,  0.5,  0.5); // Front-top-right
+    emit_one(-0.5, -0.5,  0.5); // Front-bottom-left
+    emit_one( 0.5, -0.5,  0.5); // Front-bottom-right
+    emit_one( 0.5, -0.5, -0.5); // Back-bottom-right
+    emit_one( 0.5,  0.5,  0.5); // Front-top-right
+    emit_one( 0.5,  0.5, -0.5); // Back-top-right
+    emit_one(-0.5,  0.5,  0.5); // Front-top-left
+    emit_one(-0.5,  0.5, -0.5); // Back-top-left
+    emit_one(-0.5, -0.5,  0.5); // Front-bottom-left
+    emit_one(-0.5, -0.5, -0.5); // Back-bottom-left
+    emit_one( 0.5, -0.5, -0.5); // Back-bottom-right
+    emit_one(-0.5,  0.5, -0.5); // Back-top-left
+    emit_one( 0.5,  0.5, -0.5); // Back-top-right
 } 

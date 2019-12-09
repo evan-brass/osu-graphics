@@ -1,4 +1,4 @@
-#version 330 core
+#version 330 compatibility
 
 in gData {
     vec3 color;
@@ -7,5 +7,5 @@ in gData {
 layout(location = 0) out vec4 diffuseColor;
 
 void main() {
-    diffuseColor = vec4(vert.color, 1.0);
+    diffuseColor = vec4(vert.color, 0.2);
 }

@@ -71,7 +71,7 @@ impl Demo {
 		};
 		println!("OpenGL version {}", version);
 		unsafe {
-			gl::ClearColor(0.0, 0.0, 0.0, 1.0);
+			gl::ClearColor(0.5, 0.5, 0.5, 1.0);
 			gl::Enable(gl::DEPTH_TEST);
 		}
 
@@ -109,10 +109,11 @@ impl Demo {
 
 			// Calculate the view matrix:
 			let mut view_matrix: Matrix4<f32> = Matrix4::look_at(
-				Point3::new(-1.0, 2.0, 3.0), // Eye location
+				Point3::new(2.5, 2.5, 4.0), // Eye location
 				Point3::new(0.0, 0.0, 0.0), // Center Point / Point of interest
 				Vector3::new(0.0, 1.0, 0.0), // Up vector
 			);
+			// let mut view_matrix: Matrix4<f32> = Matrix4::identity();
 			view_matrix = view_matrix * Matrix4::from_angle_x(self.xrot);
 			view_matrix = view_matrix * Matrix4::from_angle_y(self.yrot);
 			view_matrix = view_matrix * Matrix4::from_scale(self.scale);
@@ -139,8 +140,6 @@ impl Demo {
 						projection.as_ptr()
 					);
 				}
-			} else {
-				// println!("Shader doesn't use the view_matrix uniform.");
 			}
 
 			// Draw all the scene items:
@@ -178,18 +177,15 @@ impl Demo {
 	}
 	pub fn mouse_move(&mut self, diff_x: f32, diff_y: f32) {
 		if self.button_states.left == ElementState::Pressed {
-			self.yrot += Deg(diff_x);
-			self.xrot += Deg(diff_y);
+			self.yrot += Deg(diff_x / 10.0);
+			self.xrot += Deg(diff_y / 10.0);
 		}
 	}
 	pub fn toggle_paused(&mut self) {
 		self.paused = !self.paused;
 	}
 	pub fn scroll_delta(&mut self, diff_y: f32) {
-		self.scale -= diff_y / 80.0;
-		if self.scale < 0.05 {
-			self.scale = 0.05;
-		}
+		self.scale -= diff_y / 20.0;
 	}
 	pub fn handle_event(
 		&mut self,

@@ -1,4 +1,4 @@
-#version 330 core
+#version 330 compatibility
 
 in float size;
 in vec3 color;
@@ -23,7 +23,7 @@ void main() {
 	int y = int(mod(floor(gl_VertexID / DEPTH), HEIGHT));
 	int x = int(floor(gl_VertexID / DEP_HEI));
 
-    vert_out.position = vec4(x, y, z, 1.0) * chunk_transform;
-    vert_out.color = vec3(gl_VertexID, gl_VertexID, gl_VertexID);
+    vert_out.position = chunk_transform * vec4(x, y, z, 1.0);
+    vert_out.color = color;
 	vert_out.size = size;
 }

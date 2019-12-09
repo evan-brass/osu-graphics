@@ -125,7 +125,7 @@ fn main() {
 	let wb = WindowBuilder::new().with_title("OpenGL / GLUT Sample -- Evan Brass");
 
 	let windowed_context = ContextBuilder::new()
-		.with_gl(GlRequest::Specific(OpenGl, (4, 3)))
+		.with_gl(GlRequest::Latest)
 		.with_vsync(true)
 		.build_windowed(wb, &event_loop)
 		.expect("Unable to build windowed Context");
@@ -139,6 +139,7 @@ fn main() {
 	const NUM_ITEMS: usize = CHUNK_SIZE_WIDTH * CHUNK_SIZE_HEIGHT * CHUNK_SIZE_DEPTH;
 	// #[repr(packed)] // TODO: Check if this helps...
 	#[derive(Clone, Copy, Debug)]
+	#[repr(packed)]
 	struct ChunkItem {
 		pub size: f32,
 		pub color: (f32, f32, f32)
@@ -320,8 +321,8 @@ fn main() {
 					);
 				}
 				gl::DrawArrays(gl::POINTS, 0, NUM_ITEMS as i32);
-				gl::BindVertexArray(0);
-				gl::UseProgram(0);
+
+				// So... I like having the uniforms defined in demo and am too lazy to move them but the shader has to be active for it to assign the uniforms properly... and since I only have a single shader... I'm just going to constantly use the program and then it will always be active so I don't have to move it around.
 			}
 		}
 	}
@@ -344,12 +345,12 @@ fn main() {
 				}
 			}
 
-			let mut chunk = Chunk::new(0.0, 0.0, 0.0);
+			let mut chunk = Chunk::new(-2.5, -2.5, -2.5);
 			for i in 0..NUM_ITEMS {
 				let accessor = chunk.access_index(i);
 				// println!("Before: {:?}", accessor.get());
 				accessor.set(ChunkItem {
-					size: (i as f32 + 1.0) / NUM_ITEMS as f32,
+					size: (i as f32 / NUM_ITEMS as f32),
 					color: (1.0, 1.0, 1.0)
 				});
 				// println!("After: {:?}", accessor.get());
